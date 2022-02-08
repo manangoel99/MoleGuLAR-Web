@@ -40,7 +40,7 @@ async def authenticate_user(email: str, password: str) -> Union[bool, UserInDB]:
     
     return user
 
-async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode: dict = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -51,27 +51,27 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
+    credentials_exception: Exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload: dict = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        token_data = TokenData(email=email)
+        token_data: TokenData = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = await get_user(email=email)
+    user: UserInDB = await get_user(email=email)
     if user is None:
         raise credentials_exception
     return user
 
-async def user_signup(payload: SignUpFormData):
-    user_exists = await get_user(payload.email)
+async def user_signup(payload: SignUpFormData) -> int:
+    user_exists: Optional[UserInDB] = await get_user(payload.email)
 
     if user_exists:
         raise HTTPException(status_code=400, detail="User with this email already exists")

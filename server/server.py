@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from fastapi import APIRouter, Depends, Header, status
 from fastapi.exceptions import HTTPException
@@ -10,12 +10,12 @@ server = APIRouter()
 
 @server.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await user_manager.authenticate_user(form_data.username, form_data.password)
+    user: Union[bool, UserInDB] = await user_manager.authenticate_user(form_data.username, form_data.password)
 
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
     
-    access_token = await user_manager.create_access_token(
+    access_token: str = await user_manager.create_access_token(
         data={'sub': user.email}
     )
 
@@ -26,8 +26,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @server.post("/signup", response_model=Token)
 async def signup(form_data: SignUpFormData):
-    out = await user_manager.user_signup(form_data)
-    access_token = await user_manager.create_access_token(
+    out: int = await user_manager.user_signup(form_data)
+    access_token: str = await user_manager.create_access_token(
         data={'sub': form_data.email}
     )
 
