@@ -25,7 +25,8 @@ def get_password_hash(password):
 
 async def get_user(email: str) -> UserInDB:
     query = users.select(users.c.email == email)
-    return await database.fetch_one(query=query)
+    user = await database.fetch_one(query=query)
+    return user
 
 async def authenticate_user(email: str, password: str) -> Union[bool, UserInDB]:
     query = users.select(users.c.email == email)
@@ -58,7 +59,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload: dict = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload: dict = jwt.decode(
+            token, SECRET_KEY, 
+            algorithms=[ALGORITHM]
+        )
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception

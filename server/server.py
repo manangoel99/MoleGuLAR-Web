@@ -8,7 +8,11 @@ from models.user import *
 
 server = APIRouter()
 
-@server.post("/login", response_model=Token)
+@server.get("/dashboard", response_model=User)
+async def dashboard(user: User = Depends(user_manager.get_current_user)):
+    return user
+
+@server.post("/token", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user: Union[bool, UserInDB] = await user_manager.authenticate_user(form_data.username, form_data.password)
 
@@ -20,7 +24,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     )
 
     return {
-        'access_token': access_token,
+        "access_token": access_token,
         "token_type": "bearer"
     }
 
@@ -32,6 +36,6 @@ async def signup(form_data: SignUpFormData):
     )
 
     return {
-        'access_token': access_token,
+        "access_token": access_token,
         "token_type": "bearer"
     }
