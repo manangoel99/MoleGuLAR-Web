@@ -1,41 +1,37 @@
 from typing import List
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends, Header, status
 from fastapi.exceptions import HTTPException
-from models.movie import *
-from models import movie_manager 
+from fastapi.security import OAuth2PasswordRequestForm
+from models import user_manager
+from models.user import *
 
 server = APIRouter()
 
-@server.get('/', response_model=List[MovieIn])
-async def index():
-    return await movie_manager.get_all_movies()
+@server.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await user_manager.authenticate_user(form_data.username, form_data.password)
 
-@server.post('/', status_code=201)
-async def add_movie(payload: MovieIn):
-    id = await movie_manager.add_movie(payload)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+    
+    access_token = await user_manager.create_access_token(
+        data={'sub': user.email}
+    )
+
     return {
-        "id": id,
-        **payload.dict()
+        'access_token': access_token,
+        "token_type": "bearer"
     }
 
-@server.put('/{id}')
-async def update_movie(id: int, payload: MovieIn):
-    movie = await movie_manager.get_movie(id)
+@server.post("/signup", response_model=Token)
+async def signup(form_data: SignUpFormData):
+    out = await user_manager.user_signup(form_data)
+    access_token = await user_manager.create_access_token(
+        data={'sub': form_data.email}
+    )
 
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie does not exist")
-    
-    update_data = payload.dict(exclude_unset=True)
-    movie_in_db = MovieIn(**movie)
-
-    updated = movie_in_db.copy(update=update_data)
-
-    return await movie_manager.update_movie(id, updated)
-
-@server.delete('/{id}')
-async def delete_movie(id: int):
-    movie = await movie_manager.get_movie(id)
-    if not movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    return await movie_manager.delete_movie(id)
+    return {
+        'access_token': access_token,
+        "token_type": "bearer"
+    }
