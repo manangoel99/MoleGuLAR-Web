@@ -1,16 +1,39 @@
+import os
 from typing import List, Union
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Header, status
+import requests
+from fastapi import APIRouter, Depends, Header, UploadFile, status, File
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from models import user_manager
 from models.user import *
+from models.train_job import *
+
+TRAINER_SERVER = "http://localhost:8001/api/v1/trainer"
 
 server = APIRouter()
 
 @server.get("/dashboard", response_model=User)
 async def dashboard(user: User = Depends(user_manager.get_current_user)):
     return user
+
+@server.post("/submit/train", response_model=int)
+async def submit_train_job(
+    pdb_file: UploadFile = File(...),
+    params: TrainParams = Depends(), 
+    user: User = Depends(user_manager.get_current_user)
+    ):
+    params_ = TrainParamsWithUser(**params.dict(), user_id=user.id)
+
+    fixed_params = params_.dict()
+    fixed_params['logP'] = str(fixed_params['logP']).lower()
+    fixed_params['QED'] = str(fixed_params['QED']).lower()
+
+    url = urlencode(params_.dict())
+    response = requests.post(f"{TRAINER_SERVER}/submit/train?{url}", 
+        files={"pdb_file": pdb_file.file})
+    return response.json()
 
 @server.post("/token", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):

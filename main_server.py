@@ -1,9 +1,16 @@
+import os
 from http import server
+
 from fastapi import FastAPI
+
+from db import database, engine, metadata
 from server.server import server
-from db import metadata, database, engine
+from trainer.trainer import trainer
 
 metadata.create_all(engine)
+
+os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
+os.environ["TRAINER_SERVER"] = "https://localhost:8000/api/v1/trainer"
 
 app = FastAPI()
 
