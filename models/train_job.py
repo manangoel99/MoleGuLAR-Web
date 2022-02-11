@@ -20,6 +20,7 @@ class TrainParamsWithUser(TrainParams):
 
 class TrainJob(BaseModel):
     pdb_path: str
+    gpf_path: str
     user_id: int
     params: dict
     status: Optional[JobStatus] = JobStatus.pending

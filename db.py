@@ -41,6 +41,7 @@ train_jobs = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('pdb_path', String(500), nullable=False),
+    Column('gpf_path', String(500), nullable=False),
     Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False,),
     Column('params', JSON, nullable=False),
     Column('status', Enum(JobStatus), nullable=False),
