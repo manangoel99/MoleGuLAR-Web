@@ -3,7 +3,7 @@ from rdkit.Chem.Crippen import MolLogP
 from rdkit import Chem
 from rdkit.Chem.QED import qed
 from rdkit.Chem.rdMolDescriptors import CalcTPSA
-from molegular.Predictors.SolvationPredictor import FreeSolvPredictor
+# from molegular.Predictors.SolvationPredictor import FreeSolvPredictor
 
 def linear(smiles, predictor, invalid_reward=-5.0, threshold=0):
     threshold = threshold/100

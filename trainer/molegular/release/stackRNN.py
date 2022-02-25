@@ -13,9 +13,9 @@ import torch.nn.functional as F
 import time
 from tqdm import trange
 
-from molegular.release.utils import time_since
+from trainer.molegular.release.utils import time_since
 
-from molegular.release.smiles_enumerator import SmilesEnumerator
+from trainer.molegular.release.smiles_enumerator import SmilesEnumerator
 
 
 class StackAugmentedRNN(nn.Module):

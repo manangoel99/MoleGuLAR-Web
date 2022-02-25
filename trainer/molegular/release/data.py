@@ -3,7 +3,7 @@ import torch
 import random
 import numpy as np
 
-from molegular.release.utils import read_smi_file, tokenize, read_object_property_file
+from trainer.molegular.release.utils import read_smi_file, tokenize, read_object_property_file
 
 
 class GeneratorData(object):

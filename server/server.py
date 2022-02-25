@@ -21,6 +21,7 @@ async def dashboard(user: User = Depends(user_manager.get_current_user)):
 @server.post("/submit/train", response_model=int)
 async def submit_train_job(
     pdb_file: UploadFile = File(...),
+    gpf_file: UploadFile = File(...),
     params: TrainParams = Depends(), 
     user: User = Depends(user_manager.get_current_user)
     ):
@@ -31,8 +32,14 @@ async def submit_train_job(
     fixed_params['QED'] = str(fixed_params['QED']).lower()
 
     url = urlencode(params_.dict())
+
+    print(url)
+
     response = requests.post(f"{TRAINER_SERVER}/submit/train?{url}", 
-        files={"pdb_file": pdb_file.file})
+        files={
+            "pdb_file": pdb_file.file,
+            "gpf_file": gpf_file.file
+            })
     return response.json()
 
 @server.post("/token", response_model=Token)
