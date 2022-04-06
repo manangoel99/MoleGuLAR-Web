@@ -39,3 +39,7 @@ async def submit_train_job(pdb_file: UploadFile = File(...), gpf_file: UploadFil
 
     job_id = await train_job_manager.create_job(pdb_file_path, gpf_file_path, params.dict() , user_id)
     return job_id
+
+@trainer.get("/status/{user_id}/{job_id}")
+async def get_job_status(job_id: int, user_id: int):
+    return await train_job_manager.get_job_status(user_id, job_id)

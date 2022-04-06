@@ -1,16 +1,18 @@
+import logging
 import os
 from typing import List, Union
 from urllib.parse import urlencode
 
 import requests
-from fastapi import APIRouter, Depends, Header, UploadFile, status, File
+from fastapi import APIRouter, Depends, File, Header, UploadFile, status
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from models import user_manager
-from models.user import *
 from models.train_job import *
+from models.user import *
 
 TRAINER_SERVER = "http://localhost:8001/api/v1/trainer"
+EVALUATOR_SERVER = "http://localhost:8002/api/v1/evaluator"
 
 server = APIRouter()
 
@@ -33,13 +35,27 @@ async def submit_train_job(
 
     url = urlencode(params_.dict())
 
-    print(url)
-
     response = requests.post(f"{TRAINER_SERVER}/submit/train?{url}", 
         files={
             "pdb_file": pdb_file.file,
             "gpf_file": gpf_file.file
             })
+    if response.status_code != 200:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=response.text)
+    return response.json()
+
+@server.get("/user/train_jobs", response_model=List[TrainJob])
+async def get_user_jobs(user: User = Depends(user_manager.get_current_user)):
+    return await user_manager.get_all_user_jobs(user.id)
+
+@server.post("/submit/eval", response_model=List[str])
+async def submit_eval_job(
+    job_id: int,
+    user: User = Depends(user_manager.get_current_user)
+    ):
+    response = requests.post(f"{EVALUATOR_SERVER}/submit/eval?job_id={job_id}&user_id={user.id}")
+    if response.status_code != 200:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=response.text)
     return response.json()
 
 @server.post("/token", response_model=Token)

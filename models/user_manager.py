@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
-from db import database, users
+from db import database, users, train_jobs
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -84,3 +84,8 @@ async def user_signup(payload: SignUpFormData) -> int:
 
     query = users.insert().values(**payload.dict())
     return await database.execute(query=query)
+
+async def get_all_user_jobs(user_id: int):
+    query = train_jobs.select().where(train_jobs.c.user_id == user_id)
+    jobs = await database.fetch_all(query)
+    return jobs

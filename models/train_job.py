@@ -13,6 +13,7 @@ class TrainParams(BaseModel):
     logP_threshold: Optional[float] = 2.5
     QED_threshold: Optional[float] = 0.8
     switch_frequency: Optional[int] = 35
+    n_policy: Optional[int] = 15
 
 class TrainParamsWithUser(TrainParams):
     user_id: int

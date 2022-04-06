@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import ray
 import torch
 from rdkit import Chem, DataStructs, RDLogger
@@ -87,8 +88,6 @@ class TrainModel(object):
         if self._predictor == "dock":
             self.predictor = self.Predictor("", self)
         if self._predictor != "dock":
-            if self.receptor != '4BTK':
-                raise ValueError("Only 4BTK receptor is supported for now")
             if self._predictor != "gin":
                 raise ValueError("Only gin predictor is supported for now")
             model_path = os.path.join(os.getenv("ROOT"), "trainer", "molegular", "Predictors", "GINPredictor.tar")
@@ -102,7 +101,7 @@ class TrainModel(object):
         optimizer_instance = torch.optim.Adadelta
         self.n_to_generate = 100
         self.n_policy_replay = 10
-        self.n_policy = 15
+        self.n_policy = train_job["params"]["n_policy"]
 
         self.generator = StackAugmentedRNN(input_size=self.gen_data.n_characters,
                                      hidden_size=hidden_size,
@@ -122,6 +121,11 @@ class TrainModel(object):
         self.preds = []
         self.logp_iter = []
         self.qed_iter = []
+        self.metrics_df = {
+            "BA": [], 
+            "LogP": [], 
+            "QED": []
+        }
 
     def create_dir(self, type):
         root_dir = os.getenv("ROOT_DIR")
@@ -157,6 +161,7 @@ class TrainModel(object):
         self.TRAJ_FILE = open(os.path.join(self.trajectories_path, f"trajectories_{self.reward_function}.txt"), "w")
         self.LOSS_FILE = os.path.join(self.losses_path, f"losses_{self.reward_function}.txt")
         self.REWARD_FILE = os.path.join(self.rewards_path, f"rewards_{self.reward_function}.txt")
+        self.DF_FILE = os.path.join(self.predictions_path, f"predictions_{self.reward_function}.txt")
     
     def dock_and_get_score(self, smile, test=False):
         mol_dir = self.MOL_DIR
@@ -273,9 +278,16 @@ class TrainModel(object):
             self.logp_iter.append(np.mean(logps))
             self.qed_iter.append(np.mean(qeds))
 
+            self.metrics_df["BA"].append(self.preds[-1])
+            self.metrics_df["LogP"].append(self.logp_iter[-1])
+            self.metrics_df["QED"].append(self.qed_iter[-1])
+
             print(f"BA: {self.preds[-1]}")
             print(f"LogP {self.logp_iter[-1]}")
             print(f"QED {self.qed_iter[-1]}")
+
+            df = pd.DataFrame(self.metrics_df)
+            df.to_csv(self.DF_FILE)
 
             self.RL.generator.save_model(self.MODEL_NAME)
             np.savetxt(self.LOSS_FILE, self.rl_losses)
