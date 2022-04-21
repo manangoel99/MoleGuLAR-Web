@@ -264,30 +264,30 @@ class TrainModel(object):
                 self.rewards.append(self.simple_moving_average(self.rewards, cur_reward))
                 self.rl_losses.append(self.simple_moving_average(self.rl_losses, cur_loss))
 
-            smiles_cur, prediction_cur = self.estimate_and_update(self.RL.generator, self.predictor, self.n_to_generate)
-            logps = [MolLogP(Chem.MolFromSmiles(sm)) for sm in smiles_cur]
-            qeds = []
+            # smiles_cur, prediction_cur = self.estimate_and_update(self.RL.generator, self.predictor, self.n_to_generate)
+            # logps = [MolLogP(Chem.MolFromSmiles(sm)) for sm in smiles_cur]
+            # qeds = []
 
-            for sm in smiles_cur:
-                try:
-                    qeds.append(qed(Chem.MolFromSmiles(sm)))
-                except:
-                    pass
+            # for sm in smiles_cur:
+            #     try:
+            #         qeds.append(qed(Chem.MolFromSmiles(sm)))
+            #     except:
+            #         pass
 
-            self.preds.append(sum(prediction_cur)/len(prediction_cur))
-            self.logp_iter.append(np.mean(logps))
-            self.qed_iter.append(np.mean(qeds))
+            # self.preds.append(sum(prediction_cur)/len(prediction_cur))
+            # self.logp_iter.append(np.mean(logps))
+            # self.qed_iter.append(np.mean(qeds))
 
-            self.metrics_df["BA"].append(self.preds[-1])
-            self.metrics_df["LogP"].append(self.logp_iter[-1])
-            self.metrics_df["QED"].append(self.qed_iter[-1])
+            # self.metrics_df["BA"].append(self.preds[-1])
+            # self.metrics_df["LogP"].append(self.logp_iter[-1])
+            # self.metrics_df["QED"].append(self.qed_iter[-1])
 
-            print(f"BA: {self.preds[-1]}")
-            print(f"LogP {self.logp_iter[-1]}")
-            print(f"QED {self.qed_iter[-1]}")
+            # print(f"BA: {self.preds[-1]}")
+            # print(f"LogP {self.logp_iter[-1]}")
+            # print(f"QED {self.qed_iter[-1]}")
 
-            df = pd.DataFrame(self.metrics_df)
-            df.to_csv(self.DF_FILE)
+            # df = pd.DataFrame(self.metrics_df)
+            # df.to_csv(self.DF_FILE)
 
             self.RL.generator.save_model(self.MODEL_NAME)
             np.savetxt(self.LOSS_FILE, self.rl_losses)

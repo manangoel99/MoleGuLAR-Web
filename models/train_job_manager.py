@@ -1,15 +1,17 @@
-from fastapi.exceptions import HTTPException
-from fastapi import status
+import asyncio
 import os
 import pickle as pkl
 from collections import defaultdict
 from pathlib import Path
 
 import ray
-from db import database, train_jobs, JobStatus
+from db import JobStatus, database, train_jobs
+from fastapi import status
+from fastapi.exceptions import HTTPException
 from trainer.train_model import TrainModel
 
 from models.train_job import *
+
 
 async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
     job = TrainJob(pdb_path=pdb_path, gpf_path=gpf_path, params=params, user_id=user_id)
@@ -17,6 +19,13 @@ async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
     query = train_jobs.insert().values(**job.dict())
     job_id = await database.execute(query)
 
+    loop = asyncio.get_event_loop()
+
+    loop.create_task(run_job(job_id, user_id, pdb_path, gpf_path, params))
+
+    return job_id
+
+async def run_job(job_id: int, user_id: int, pdb_path: str, gpf_path: str, params: dict):
     model = TrainModel.remote({
         "pdb_path": pdb_path,
         "gpf_path": gpf_path,
@@ -24,53 +33,23 @@ async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
         "params": params
     }, job_id)
 
-
-    #TODO: Figure out a way to lock the file for writing
-
-    user_mapping_file = Path(
-        os.path.join(os.environ["ROOT_DIR"], "user_job_mapping.pkl")
-    )
-
     model_train_id = model.train.remote()
-
     try:
-        with open(user_mapping_file, "rb") as f:
-            user_job_mapping = pkl.load(f)
-    except FileNotFoundError:
-        user_job_mapping = defaultdict(list)
-    user_job_mapping[(user_id, job_id)].append({
-        "training_id": model_train_id
-    })
-
-
-    with open(user_mapping_file, "wb") as f:
-        pkl.dump(user_job_mapping, f)
-
-    return job_id
-
-async def get_job_status(user_id: int, job_id: int):
-    user_mapping_file = Path(
-        os.path.join(os.environ["ROOT_DIR"], "user_job_mapping.pkl")
-    )
-    try:
-        with open(user_mapping_file, "rb") as f:
-            user_job_mapping = pkl.load(f)
-    except FileNotFoundError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="No job found")
-    
-    if (user_id, job_id) not in user_job_mapping:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="No job found")
-    
-    ray_train_job_id = user_job_mapping[(user_id, job_id)]
-    ls = []
-    for i in ray_train_job_id:
-        ls.append(i['training_id'])
-    ready, not_ready = ray.wait(ls, timeout=0.1)
-
-    if ls[0] in not_ready:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="training jop is still in progress")
+        ray.get(model_train_id)
+    except:
+        query = train_jobs.update().where(train_jobs.c.id == job_id).values(status=JobStatus.failed)
+        await database.execute(query)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in training job")
     
     query = train_jobs.update().where(train_jobs.c.id == job_id).values(status=JobStatus.finished)
-    await database.execute(query)
+    return await database.execute(query)
 
-    return JobStatus.finished
+
+async def get_job_status(user_id: int, job_id: int):
+    query = train_jobs.select().where(train_jobs.c.id == job_id)
+    job = await database.fetch_one(query)
+    if job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.user_id != user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Job not found")
+    return job.status
