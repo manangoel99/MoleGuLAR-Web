@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Union
+from typing import List, Tuple, Union, Any
 from urllib.parse import urlencode
 
 import requests
@@ -48,14 +48,26 @@ async def submit_train_job(
 async def get_user_jobs(user: User = Depends(user_manager.get_current_user)):
     return await user_manager.get_all_user_jobs(user.id)
 
-@server.post("/submit/eval", response_model=List[str])
+@server.post("/submit/eval")
 async def submit_eval_job(
     job_id: int,
-    user: User = Depends(user_manager.get_current_user)
+    user: User = Depends(user_manager.get_current_user),
+    num_molecules: int = 10
     ):
-    response = requests.post(f"{EVALUATOR_SERVER}/submit/eval?job_id={job_id}&user_id={user.id}")
+
+    params = {
+        "job_id": job_id,
+        "user_id": user.id,
+        "num_molecules": num_molecules
+    }
+
+    url = urlencode(params)
+
+    response = requests.post(f"{EVALUATOR_SERVER}/submit/eval?{url}")
+    
     if response.status_code != 200:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=response.text)
+    
     return response.json()
 
 @server.post("/token", response_model=Token)

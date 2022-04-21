@@ -28,7 +28,7 @@ os.environ["AUTODOCK_PATH"] = "/home/manan/MGLTools-1.5.7/bin/pythonsh /home/man
 
 @ray.remote(num_gpus=1)
 class TrainModel(object):
-    def __init__(self, train_job: dict, job_id: int):
+    def __init__(self, train_job: dict, job_id: int, eval: bool = False):
         self.user_id = train_job["user_id"]
         self.receptor = train_job["pdb_path"]
         self.gpf = train_job["gpf_path"]
@@ -83,7 +83,10 @@ class TrainModel(object):
         self.gen_data = GeneratorData(training_data_path=gen_data_path, delimiter='\t',
                          cols_to_read=[0], keep_header=True, tokens=tokens)
         
-        self.create_dirs()
+        self.create_dirs(eval=eval)
+
+        self.LOGS_DIR = self.logs_dir_path
+        self.MOL_DIR = self.molecules_dir_path
 
         if self._predictor == "dock":
             self.predictor = self.Predictor("", self)
@@ -127,7 +130,7 @@ class TrainModel(object):
             "QED": []
         }
 
-    def create_dir(self, type):
+    def create_dir(self, type, eval=False):
         root_dir = os.getenv("ROOT_DIR")
         path = Path(
             os.path.join(
@@ -138,21 +141,27 @@ class TrainModel(object):
             )
         )
 
+        if eval:
+            return path
+
         if os.path.exists(path) == False:
             path.mkdir(exist_ok=True, parents=True)
         else:
             shutil.rmtree(path)
             path.mkdir(exist_ok=True, parents=True)
         return path
+    
+    def load_generator(self, path):
+        self.generator.load_model(path)
  
-    def create_dirs(self):
-        self.logs_dir_path = self.create_dir(f"logs_{self.reward_function}")
-        self.molecules_dir_path = self.create_dir(f"molecules_{self.reward_function}")
-        self.trajectories_path = self.create_dir("trajectories")
-        self.rewards_path = self.create_dir("rewards")
-        self.losses_path = self.create_dir("losses")
-        self.models_path = self.create_dir("models")
-        self.predictions_path = self.create_dir("predictions")
+    def create_dirs(self, eval=False):
+        self.logs_dir_path = self.create_dir(f"logs_{self.reward_function}", eval=eval)
+        self.molecules_dir_path = self.create_dir(f"molecules_{self.reward_function}", eval=eval)
+        self.trajectories_path = self.create_dir("trajectories", eval=eval)
+        self.rewards_path = self.create_dir("rewards", eval=eval)
+        self.losses_path = self.create_dir("losses", eval=eval)
+        self.models_path = self.create_dir("models", eval=eval)
+        self.predictions_path = self.create_dir("predictions", eval=eval)
 
         self.MODEL_NAME = os.path.join(self.models_path, f"model_{self.reward_function}.pt")
         self.LOGS_DIR = self.logs_dir_path
@@ -220,7 +229,13 @@ class TrainModel(object):
             self.OVERALL_INDEX += 1
             return 0
     
-    def estimate_and_update(self, generator, predictor, n_to_generate):
+    def estimate_and_update(self, generator=None, predictor=None, n_to_generate=10):
+        if generator is None:
+            generator = self.generator
+        
+        if predictor is None:
+            predictor = self.predictor
+
         generated = []
         pbar = tqdm(range(n_to_generate))
         for i in pbar:

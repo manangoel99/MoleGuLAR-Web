@@ -52,4 +52,5 @@ async def get_job_status(user_id: int, job_id: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Job not found")
     if job.user_id != user_id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Job not found")
+
     return job.status
