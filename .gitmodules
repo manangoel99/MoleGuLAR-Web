@@ -1,0 +1,3 @@
+[submodule "AutoDock-GPU"]
+	path = AutoDock-GPU
+	url = https://github.com/ccsb-scripps/AutoDock-GPU
