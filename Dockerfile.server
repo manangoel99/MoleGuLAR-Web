@@ -2,9 +2,16 @@ FROM python:3.9.5-slim
 
 WORKDIR /app
 
-COPY . /app
-
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get install gcc -y
 
+COPY . /app
+
 RUN pip install -r requirements.txt
+
+ENV TRAINER_SERVER http://trainer:8001/api/v1/trainer
+
+RUN mkdir -p data
+
+ENV ROOT_DIR /app/data
+ENV ROOT /app

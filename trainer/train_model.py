@@ -22,10 +22,6 @@ from trainer.molegular.release.utils import canonical_smiles
 
 RDLogger.DisableLog('rdApp.info')
 
-os.environ["ROOT"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/"
-os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
-os.environ["AUTODOCK_PATH"] = "/home/manan/MGLTools-1.5.7/bin/pythonsh /home/manan/MGLTools-1.5.7/MGLToolsPckgs/AutoDockTools/Utilities24"
-
 @ray.remote(num_gpus=1)
 class TrainModel(object):
     def __init__(self, train_job: dict, job_id: int, eval: bool = False):
@@ -66,8 +62,6 @@ class TrainModel(object):
             use_solvation=False,
             **self.thresholds
         )
-        os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
-        os.environ["ROOT"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/"
 
         self.job_dir = Path(os.path.join(
             os.getenv("ROOT_DIR"),
@@ -177,57 +171,56 @@ class TrainModel(object):
         log_dir = self.LOGS_DIR
         curr_dir = os.getcwd()
 
-        try:
-            path = os.getenv("AUTODOCK_PATH")
-            mol = Chem.MolFromSmiles(smile)
-            AllChem.EmbedMolecule(mol)
+        # try:
+        path = os.getenv("AUTODOCK_PATH")
+        mol = Chem.MolFromSmiles(smile)
+        AllChem.EmbedMolecule(mol)
 
-            if test == True:
-                self.MOL_DIR = Path(
-                    os.path.join(
-                        self.MOL_DIR,
-                        "validation"
-                    )
+        if test == True:
+            self.MOL_DIR = Path(
+                os.path.join(
+                    self.MOL_DIR,
+                    "validation"
                 )
-                self.LOGS_DIR = Path(
-                    os.path.join(
-                        self.LOGS_DIR,
-                        "validation"
-                    )
+            )
+            self.LOGS_DIR = Path(
+                os.path.join(
+                    self.LOGS_DIR,
+                    "validation"
                 )
-
-                if os.path.exists(self.MOL_DIR):
-                    shutil.rmtree(self.MOL_DIR)
-                self.MOL_DIR.mkdir(exist_ok=True, parents=True)
-
-                if os.path.exists(self.LOGS_DIR):
-                    shutil.rmtree(self.LOGS_DIR)
-                self.LOGS_DIR.mkdir(exist_ok=True, parents=True)
+            )
+            if os.path.exists(self.MOL_DIR):
+                shutil.rmtree(self.MOL_DIR)
+            self.MOL_DIR.mkdir(exist_ok=True, parents=True)
+            if os.path.exists(self.LOGS_DIR):
+                shutil.rmtree(self.LOGS_DIR)
+            self.LOGS_DIR.mkdir(exist_ok=True, parents=True)
             
-            os.chdir(self.MOL_DIR)
-            rdmolfiles.MolToPDBFile(mol, os.path.join(self.MOL_DIR, f"{self.OVERALL_INDEX}.pdb"))
-            os.system(f"{path}/prepare_ligand4.py -l {self.OVERALL_INDEX}.pdb -o {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt") # > /dev/null 2>&1")
-            os.system(f"{path}/prepare_receptor4.py -r {self.receptor} -o ./protein.pdbqt") # > /dev/null 2>&1")
-            os.system(f"{path}/prepare_gpf4.py -i {self.gpf} -l {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -r {self.MOL_DIR}/protein.pdbqt -o {self.MOL_DIR}/grid_params.gpf")# > /dev/null 2>&1")
+        os.chdir(self.MOL_DIR)
+        print(os.getcwd())
+        rdmolfiles.MolToPDBFile(mol, os.path.join(self.MOL_DIR, f"{self.OVERALL_INDEX}.pdb"))
+        os.system(f"{path}/prepare_ligand4.py -l {self.OVERALL_INDEX}.pdb -o {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt") # > /dev/null 2>&1")
+        os.system(f"{path}/prepare_receptor4.py -r {self.receptor} -o ./protein.pdbqt") # > /dev/null 2>&1")
+        os.system(f"{path}/prepare_gpf4.py -i {self.gpf} -l {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -r {self.MOL_DIR}/protein.pdbqt -o {self.MOL_DIR}/grid_params.gpf")# > /dev/null 2>&1")
 
-            os.system(f"autogrid4 -p {self.MOL_DIR}/grid_params.gpf > /dev/null 2>&1")
-            os.system(f"~/AutoDock-GPU/bin/autodock_gpu_64wi -ffile protein.maps.fld -lfile {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -resnam {self.LOGS_DIR}/{str(self.OVERALL_INDEX)} -nrun 10 -devnum {self.device} > /dev/null 2>&1")
+        os.system(f"autogrid4 -p {self.MOL_DIR}/grid_params.gpf > /dev/null 2>&1")
+        os.system(f"/app/AutoDock-GPU/bin/autodock_gpu_64wi -ffile protein.maps.fld -lfile {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -resnam {self.LOGS_DIR}/{str(self.OVERALL_INDEX)} -nrun 10 -devnum {self.device} > /dev/null 2>&1")
 
-            cmd = f"cat {self.LOGS_DIR}/{str(self.OVERALL_INDEX)}.dlg | grep -i ranking | tr -s '\t' ' ' | cut -d ' ' -f 5 | head -n1"
-            stream = os.popen(cmd)
-            output = float(stream.read().strip())
-            self.OVERALL_INDEX += 1
-            self.MOL_DIR = mol_dir
-            self.LOGS_DIR = log_dir
-            os.chdir(curr_dir)
-            return output
+        cmd = f"cat {self.LOGS_DIR}/{str(self.OVERALL_INDEX)}.dlg | grep -i ranking | tr -s '\t' ' ' | cut -d ' ' -f 5 | head -n1"
+        stream = os.popen(cmd)
+        output = float(stream.read().strip())
+        self.OVERALL_INDEX += 1
+        self.MOL_DIR = mol_dir
+        self.LOGS_DIR = log_dir
+        os.chdir(curr_dir)
+        return output
 
-        except Exception as e:
-            self.MOL_DIR = mol_dir
-            self.LOGS_DIR = log_dir
-            os.chdir(curr_dir)
-            self.OVERALL_INDEX += 1
-            return 0
+        # except Exception as e:
+        #     self.MOL_DIR = mol_dir
+        #     self.LOGS_DIR = log_dir
+        #     os.chdir(curr_dir)
+        #     self.OVERALL_INDEX += 1
+        #     return 0
     
     def estimate_and_update(self, generator=None, predictor=None, n_to_generate=10):
         if generator is None:
@@ -343,9 +336,6 @@ class TrainModel(object):
             return canonical_smiles, prediction, invalid_smiles
 
 if __name__ == "__main__":
-    os.environ["ROOT"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/"
-    os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
-    os.environ["AUTODOCK_PATH"] = "/home/manan/MGLTools-1.5.7/bin/pythonsh /home/manan/MGLTools-1.5.7/MGLToolsPckgs/AutoDockTools/Utilities24"
     path = os.getenv("ROOT_DIR")
 
     print(path)

@@ -11,7 +11,7 @@ from models import user_manager
 from models.train_job import *
 from models.user import *
 
-TRAINER_SERVER = "http://127.0.0.1:8001/api/v1/trainer"
+TRAINER_SERVER = os.environ["TRAINER_SERVER"]
 EVALUATOR_SERVER = "http://localhost:8002/api/v1/evaluator"
 
 server = APIRouter()

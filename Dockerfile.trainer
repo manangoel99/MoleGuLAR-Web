@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.2.1-cudnn8-runtime-ubuntu18.04
+FROM nvidia/cuda:11.2.1-cudnn8-devel-ubuntu18.04
 
 RUN apt-get update -y && \
     apt-get upgrade -y && \
@@ -11,8 +11,6 @@ RUN apt-get update -y && \
 
 WORKDIR /app
 
-COPY . /app
-
 ENV CONDA_DIR /opt/conda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
      /bin/bash ~/miniconda.sh -b -p /opt/conda
@@ -22,11 +20,24 @@ RUN conda install -c hcc autodock
 
 RUN git clone https://github.com/ccsb-scripps/AutoDock-GPU
 
-CMD ["bash"]
+ENV GPU_INCLUDE_PATH /usr/local/cuda-11.2/include
+ENV GPU_LIBRARY_PATH /usr/local/cuda-11.2/lib64
 
-# RUN pip install -r requirements.txt
+RUN cd AutoDock-GPU && make DEVICE=CUDA NUMWI=64
+COPY . /app
+
+RUN pip install -r requirements.txt
+RUN pip install gdown
+
+RUN gdown 1kAkQ3umldbXSVelL_WuIffahcvVonlt1 && tar -xf mgltools_x86_64Linux2_1.5.7.tar_.gz && cd mgltools_x86_64Linux2_1.5.7 && ./install.sh
+
+ENV AUTODOCK_PATH /app/mgltools_x86_64Linux2_1.5.7/bin/pythonsh /app/mgltools_x86_64Linux2_1.5.7/MGLToolsPckgs/AutoDockTools/Utilities24
 
 
+RUN mkdir -p data
+
+ENV ROOT_DIR /app/data
+ENV ROOT /app
 # Install base utilities
 
 

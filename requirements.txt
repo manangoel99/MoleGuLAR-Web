@@ -5,6 +5,9 @@ bcrypt==3.2.0
 colorful==0.5.4
 cryptography==36.0.1
 databases==0.5.5
+dgl==0.6.1
+dgllife==0.2.9
+dnspython==2.2.0
 fastapi==0.73.0
 gpustat==1.0.0b1
 opencensus==0.8.0
@@ -12,9 +15,14 @@ passlib==1.7.4
 pip-chill==1.0.1
 prometheus-client==0.13.1
 psycopg2-binary==2.9.3
+python-dotenv==0.19.2
 python-jose==3.3.0
 python-multipart==0.0.5
 ray==1.10.0
+rdkit-pypi==2021.9.4
 smart-open==5.2.1
+snooty-lextudio==1.12.0
+torch==1.10.2
 uvicorn==0.17.4
 werkzeug==2.0.3
+pandas

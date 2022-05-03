@@ -16,6 +16,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.trainer
+    command: bash -c 'while !</dev/tcp/db/5432; do sleep 1; done; uvicorn main_trainer:app --host 0.0.0.0 --port 8001'
+    volumes:
+      - .:/app
+    expose:
+      - 8001
+    ports:
+      - 8001:8001
+    environment:
+      - DATABASE_URL=postgresql://fastapi_traefik:fastapi_traefik@db:5432/fastapi_traefik
+    depends_on:
+      - db
+      - server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
   db:
     image: postgres:13-alpine
     volumes:

@@ -12,8 +12,6 @@ from pathlib import Path
 
 metadata.create_all(engine)
 
-os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
-os.environ["TRAINER_SERVER"] = "https://localhost:8000/api/v1/trainer"
 
 root_path = Path(os.getenv("ROOT_DIR"))
 root_path.mkdir(parents=True, exist_ok=True)

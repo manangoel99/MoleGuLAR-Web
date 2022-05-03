@@ -15,7 +15,6 @@ from rdkit.Chem.QED import qed
 from trainer.train_model import TrainModel
 
 
-os.environ["ROOT_DIR"] = "/home/manan/Desktop/MoleGuLAR-Web/MoleGuLAR-Web-app/data"
 
 async def get_molecules(job_id: int, user_id: int, num_molecules: int = 10):
     query = train_jobs.select().where(train_jobs.c.id == job_id)
