@@ -20,7 +20,7 @@ async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
     job_id = await database.execute(query)
 
     loop = asyncio.get_event_loop()
-
+    # await run_job(job_id, user_id, pdb_path, gpf_path, params)
     loop.create_task(run_job(job_id, user_id, pdb_path, gpf_path, params))
 
     return job_id

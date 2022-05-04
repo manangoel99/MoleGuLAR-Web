@@ -29,8 +29,6 @@ COPY . /app
 RUN pip install -r requirements.txt
 RUN pip install gdown
 
-RUN gdown 1kAkQ3umldbXSVelL_WuIffahcvVonlt1 && tar -xf mgltools_x86_64Linux2_1.5.7.tar_.gz && cd mgltools_x86_64Linux2_1.5.7 && ./install.sh
-
 ENV AUTODOCK_PATH /app/mgltools_x86_64Linux2_1.5.7/bin/pythonsh /app/mgltools_x86_64Linux2_1.5.7/MGLToolsPckgs/AutoDockTools/Utilities24
 
 
