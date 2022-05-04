@@ -11,7 +11,7 @@ from fastapi.exceptions import HTTPException
 from models.eval_job_manager import get_molecules
 from werkzeug.utils import secure_filename
 
-TRAINER_SERVER = "http://localhost:8001/api/v1/trainer"
+TRAINER_SERVER = os.getenv("TRAINER_SERVER")
 
 evaluator = APIRouter()
 

@@ -12,7 +12,7 @@ from models.train_job import *
 from models.user import *
 
 TRAINER_SERVER = os.environ["TRAINER_SERVER"]
-EVALUATOR_SERVER = "http://localhost:8002/api/v1/evaluator"
+EVALUATOR_SERVER = os.getenv("EVALUATOR_SERVER")
 
 server = APIRouter()
 

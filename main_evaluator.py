@@ -11,8 +11,19 @@ metadata.create_all(engine)
 app = FastAPI()
 
 
+def setup_docking_tool():
+    os.system("tar -xf /app/mgltools_x86_64Linux2_1.5.7.tar_.gz")
+    os.chdir("mgltools_x86_64Linux2_1.5.7")
+    os.system("./install.sh")
+    os.chdir("..")
+    os.chdir("AutoDock-GPU")
+    os.system("make DEVICE=CUDA NUMWI=64")
+    os.chdir("..")
+
+
 @app.on_event("startup")
 async def startup():
+    setup_docking_tool()
     await database.connect()
 
 

@@ -23,10 +23,9 @@ RUN git clone https://github.com/ccsb-scripps/AutoDock-GPU
 ENV GPU_INCLUDE_PATH /usr/local/cuda-11.2/include
 ENV GPU_LIBRARY_PATH /usr/local/cuda-11.2/lib64
 
-RUN cd AutoDock-GPU && make DEVICE=CUDA NUMWI=64
-
 COPY requirements.txt /app
 RUN pip install -r requirements.txt
+
 COPY . /app
 
 ENV AUTODOCK_PATH /app/mgltools_x86_64Linux2_1.5.7/bin/pythonsh /app/mgltools_x86_64Linux2_1.5.7/MGLToolsPckgs/AutoDockTools/Utilities24
@@ -36,11 +35,4 @@ RUN mkdir -p data
 
 ENV ROOT_DIR /app/data
 ENV ROOT /app
-# Install base utilities
-
-
-# Install miniconda
-
-
-# Put conda in path so we can use conda activate
-
+ENV TRAINER_SERVER http://trainer:8001/api/v1/trainer

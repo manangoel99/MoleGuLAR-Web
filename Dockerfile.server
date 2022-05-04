@@ -5,11 +5,14 @@ WORKDIR /app
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get install gcc -y
 
-COPY . /app
-
+COPY requirements.txt /app
 RUN pip install -r requirements.txt
 
+COPY . /app
+
+
 ENV TRAINER_SERVER http://trainer:8001/api/v1/trainer
+ENV EVALUATOR_SERVER http://evaluator:8002/api/v1/evaluator
 
 RUN mkdir -p data
 
