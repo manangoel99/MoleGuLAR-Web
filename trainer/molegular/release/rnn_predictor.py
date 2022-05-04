@@ -4,7 +4,8 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from rdkit import Chem
-sys.path.append('./OpenChem/')
+
+sys.path.append("./OpenChem/")
 
 from openchem.models.Smiles2Label import Smiles2Label
 from openchem.modules.embeddings.basic_embedding import Embedding
@@ -17,9 +18,9 @@ from openchem.data.utils import pad_sequences, seq2tensor, sanitize_smiles
 class RNNPredictor(object):
     def __init__(self, path_to_parameters_dict, path_to_checkpoint, tokens):
         super(RNNPredictor, self).__init__()
-        self.tokens = ''.join(tokens)
+        self.tokens = "".join(tokens)
         model_object = Smiles2Label
-        model_params = pickle.load(open(path_to_parameters_dict, 'rb'))
+        model_params = pickle.load(open(path_to_parameters_dict, "rb"))
         model = []
         for i in range(5):
             model.append(model_object(params=model_params))
@@ -27,8 +28,11 @@ class RNNPredictor(object):
         self.tokens = tokens
 
         for i in range(5):
-            self.model[i].load_state_dict(torch.load(path_to_checkpoint + str(i) + '.pkl', map_location='cpu'))
-#             self.model[i].load_model(path_to_checkpoint + str(i) + '.pkl')
+            self.model[i].load_state_dict(
+                torch.load(path_to_checkpoint + str(i) + ".pkl", map_location="cpu")
+            )
+
+    #             self.model[i].load_model(path_to_checkpoint + str(i) + '.pkl')
 
     def predict(self, smiles, use_tqdm=False):
         double = False
@@ -60,9 +64,14 @@ class RNNPredictor(object):
         prediction = []
         for i in range(len(self.model)):
             prediction.append(
-                self.model[i]([torch.LongTensor(smiles_tensor),
-                               torch.LongTensor(length)],
-                              eval=True).detach().cpu().numpy())
+                self.model[i](
+                    [torch.LongTensor(smiles_tensor), torch.LongTensor(length)],
+                    eval=True,
+                )
+                .detach()
+                .cpu()
+                .numpy()
+            )
         prediction = np.array(prediction).reshape(len(self.model), -1)
         prediction = np.min(prediction, axis=0)
         if double:

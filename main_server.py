@@ -18,12 +18,15 @@ root_path.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
 
+
 @app.on_event("startup")
 async def startup():
     await database.connect()
 
+
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
+
 
 app.include_router(server)

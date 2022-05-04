@@ -6,13 +6,13 @@ import torch
 from tqdm import tqdm
 from dgl.nn.pytorch.glob import AvgPooling
 from dgllife.model import load_pretrained
-from dgllife.utils import (PretrainAtomFeaturizer, PretrainBondFeaturizer,
-                           mol_to_bigraph)
+from dgllife.utils import PretrainAtomFeaturizer, PretrainBondFeaturizer, mol_to_bigraph
 from rdkit import Chem
 from torch.nn import Linear
 from torch.utils.data import DataLoader, TensorDataset
 
 import joblib
+
 
 def graph_construction_and_featurization(smiles):
     """Construct graphs from SMILES and featurize them
@@ -36,10 +36,13 @@ def graph_construction_and_featurization(smiles):
             if mol is None:
                 success.append(False)
                 continue
-            g = mol_to_bigraph(mol, add_self_loop=True,
-                               node_featurizer=PretrainAtomFeaturizer(),
-                               edge_featurizer=PretrainBondFeaturizer(),
-                               canonical_atom_order=False)
+            g = mol_to_bigraph(
+                mol,
+                add_self_loop=True,
+                node_featurizer=PretrainAtomFeaturizer(),
+                edge_featurizer=PretrainBondFeaturizer(),
+                canonical_atom_order=False,
+            )
             graphs.append(g)
             success.append(True)
         except:
@@ -47,14 +50,18 @@ def graph_construction_and_featurization(smiles):
 
     return graphs, success
 
+
 def collate(graphs):
     return dgl.batch(graphs)
 
-class RFRPredictor():
+
+class RFRPredictor:
     def __init__(self, model_path):
         self.model = joblib.load(model_path)
         # self.model.load_state_dict(torch.load(model_path))
-        self.embeddings = load_pretrained('gin_supervised_infomax').to(torch.device('cpu'))
+        self.embeddings = load_pretrained("gin_supervised_infomax").to(
+            torch.device("cpu")
+        )
         self.embeddings.eval()
         self.readout = AvgPooling()
 
@@ -83,16 +90,20 @@ class RFRPredictor():
             return canonical_smiles, [], invalid_smiles
         mol_emb = []
         dataset, success = graph_construction_and_featurization(smiles)
-        args = {
-            'device' : torch.device('cpu')
-        }
+        args = {"device": torch.device("cpu")}
         vals = []
-        data_loader = DataLoader(dataset, batch_size=len(smiles), shuffle=False, collate_fn=collate)
+        data_loader = DataLoader(
+            dataset, batch_size=len(smiles), shuffle=False, collate_fn=collate
+        )
         for id, bg in enumerate(data_loader):
-            nfeats = [bg.ndata.pop('atomic_number').to(args['device']),
-                  bg.ndata.pop('chirality_type').to(args['device'])]
-            efeats = [bg.edata.pop('bond_type').to(args['device']),
-                  bg.edata.pop('bond_direction_type').to(args['device'])]
+            nfeats = [
+                bg.ndata.pop("atomic_number").to(args["device"]),
+                bg.ndata.pop("chirality_type").to(args["device"]),
+            ]
+            efeats = [
+                bg.edata.pop("bond_type").to(args["device"]),
+                bg.edata.pop("bond_direction_type").to(args["device"]),
+            ]
             with torch.no_grad():
                 node_repr = self.embeddings(bg, nfeats, efeats)
             mol_emb.append(self.readout(bg, node_repr))
@@ -100,6 +111,7 @@ class RFRPredictor():
         vals = self.model.predict(mol_emb)
         return canonical_smiles, vals, invalid_smiles
 
-if __name__ == '__main__':
-    pred = RFRPredictor('./RFRPredictor.pkl')
-    print(pred.predict('C'))
+
+if __name__ == "__main__":
+    pred = RFRPredictor("./RFRPredictor.pkl")
+    print(pred.predict("C"))

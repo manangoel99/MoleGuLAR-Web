@@ -7,8 +7,7 @@ import torch
 from tqdm import tqdm
 from dgl.nn.pytorch.glob import AvgPooling
 from dgllife.model import load_pretrained
-from dgllife.utils import (PretrainAtomFeaturizer, PretrainBondFeaturizer,
-                           mol_to_bigraph)
+from dgllife.utils import PretrainAtomFeaturizer, PretrainBondFeaturizer, mol_to_bigraph
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
@@ -16,8 +15,7 @@ from gpytorch.means import ConstantMean, LinearMean
 from gpytorch.mlls import AddedLossTerm, DeepApproximateMLL, VariationalELBO
 from gpytorch.models import GP, ApproximateGP
 from gpytorch.models.deep_gps import DeepGP, DeepGPLayer
-from gpytorch.variational import (CholeskyVariationalDistribution,
-                                  VariationalStrategy)
+from gpytorch.variational import CholeskyVariationalDistribution, VariationalStrategy
 from rdkit import Chem
 from torch.nn import Linear
 from torch.utils.data import DataLoader, TensorDataset
@@ -45,10 +43,13 @@ def graph_construction_and_featurization(smiles):
             if mol is None:
                 success.append(False)
                 continue
-            g = mol_to_bigraph(mol, add_self_loop=True,
-                               node_featurizer=PretrainAtomFeaturizer(),
-                               edge_featurizer=PretrainBondFeaturizer(),
-                               canonical_atom_order=False)
+            g = mol_to_bigraph(
+                mol,
+                add_self_loop=True,
+                node_featurizer=PretrainAtomFeaturizer(),
+                edge_featurizer=PretrainBondFeaturizer(),
+                canonical_atom_order=False,
+            )
             graphs.append(g)
             success.append(True)
         except:
@@ -56,12 +57,13 @@ def graph_construction_and_featurization(smiles):
 
     return graphs, success
 
+
 def collate(graphs):
     return dgl.batch(graphs)
 
 
 class DeepGPHiddenLayer(DeepGPLayer):
-    def __init__(self, input_dims, output_dims, num_inducing=128, mean_type='constant'):
+    def __init__(self, input_dims, output_dims, num_inducing=128, mean_type="constant"):
         if output_dims is None:
             inducing_points = torch.randn(num_inducing, input_dims)
             batch_shape = torch.Size([])
@@ -70,28 +72,30 @@ class DeepGPHiddenLayer(DeepGPLayer):
             batch_shape = torch.Size([output_dims])
 
         variational_distribution = CholeskyVariationalDistribution(
-            num_inducing_points=num_inducing,
-            batch_shape=batch_shape
+            num_inducing_points=num_inducing, batch_shape=batch_shape
         )
 
         variational_strategy = VariationalStrategy(
             self,
             inducing_points,
             variational_distribution,
-            learn_inducing_locations=True
+            learn_inducing_locations=True,
         )
 
-        super(DeepGPHiddenLayer, self).__init__(variational_strategy, input_dims, output_dims)
+        super(DeepGPHiddenLayer, self).__init__(
+            variational_strategy, input_dims, output_dims
+        )
 
-        if mean_type == 'constant':
+        if mean_type == "constant":
             self.mean_module = ConstantMean(batch_shape=batch_shape)
         else:
             self.mean_module = LinearMean(input_dims)
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel())
-
+        self.covar_module = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.MaternKernel()
+        )
 
     def forward(self, x):
-        mean_x = self.mean_module(x) # self.linear_layer(x).squeeze(-1)
+        mean_x = self.mean_module(x)  # self.linear_layer(x).squeeze(-1)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x, covar_x)
 
@@ -114,19 +118,20 @@ class DeepGPHiddenLayer(DeepGPLayer):
 
         return super().__call__(x, are_samples=bool(len(other_inputs)))
 
+
 class DeepGPModel(DeepGP):
     def __init__(self, train_x_shape):
 
         hidden_layer = DeepGPHiddenLayer(
             input_dims=train_x_shape[-1],
             output_dims=20,
-            mean_type='linear',
+            mean_type="linear",
         )
 
         last_layer = DeepGPHiddenLayer(
             input_dims=hidden_layer.output_dims,
             output_dims=None,
-            mean_type='constant',
+            mean_type="constant",
         )
 
         super().__init__()
@@ -138,7 +143,7 @@ class DeepGPModel(DeepGP):
         hidden_rep1 = self.hidden_layer(inputs)
         output = self.last_layer(hidden_rep1)
         return output
-    
+
     def predict(self, test_loader):
         with torch.no_grad():
             mus = []
@@ -152,15 +157,22 @@ class DeepGPModel(DeepGP):
                 mus.append(preds.mean)
                 variances.append(preds.stddev)
                 gts.append(y_batch)
-                #lls.append(self.likelihood.log_marginal(y_batch, self(x_batch)))
+                # lls.append(self.likelihood.log_marginal(y_batch, self(x_batch)))
 
-        return torch.cat(mus, dim=-1), torch.cat(variances, dim=-1), torch.cat(gts, dim=-1)
+        return (
+            torch.cat(mus, dim=-1),
+            torch.cat(variances, dim=-1),
+            torch.cat(gts, dim=-1),
+        )
 
-class DeepGPPredictor():
+
+class DeepGPPredictor:
     def __init__(self, model_path):
         self.model = DeepGPModel((None, 300))
         self.model.load_state_dict(torch.load(model_path))
-        self.embeddings = load_pretrained('gin_supervised_infomax').to(torch.device('cpu'))
+        self.embeddings = load_pretrained("gin_supervised_infomax").to(
+            torch.device("cpu")
+        )
         self.embeddings.eval()
         self.readout = AvgPooling()
 
@@ -189,15 +201,19 @@ class DeepGPPredictor():
             return canonical_smiles, [], invalid_smiles
         mol_emb = []
         dataset, success = graph_construction_and_featurization(smiles)
-        args = {
-            'device' : torch.device('cpu')
-        }
-        data_loader = DataLoader(dataset, batch_size=len(smiles), shuffle=False, collate_fn=collate)
+        args = {"device": torch.device("cpu")}
+        data_loader = DataLoader(
+            dataset, batch_size=len(smiles), shuffle=False, collate_fn=collate
+        )
         for id, bg in enumerate(data_loader):
-            nfeats = [bg.ndata.pop('atomic_number').to(args['device']),
-                  bg.ndata.pop('chirality_type').to(args['device'])]
-            efeats = [bg.edata.pop('bond_type').to(args['device']),
-                  bg.edata.pop('bond_direction_type').to(args['device'])]
+            nfeats = [
+                bg.ndata.pop("atomic_number").to(args["device"]),
+                bg.ndata.pop("chirality_type").to(args["device"]),
+            ]
+            efeats = [
+                bg.edata.pop("bond_type").to(args["device"]),
+                bg.edata.pop("bond_direction_type").to(args["device"]),
+            ]
             with torch.no_grad():
                 node_repr = self.embeddings(bg, nfeats, efeats)
             mol_emb.append(self.readout(bg, node_repr))
@@ -208,9 +224,7 @@ class DeepGPPredictor():
         vals = vals.cpu().detach().numpy().mean(0).tolist()
         return canonical_smiles, vals, invalid_smiles
 
-if __name__ == '__main__':
-    pred = DeepGPPredictor('./PredictorModel.tar')
-    print(pred.predict('C'))
 
-        
-
+if __name__ == "__main__":
+    pred = DeepGPPredictor("./PredictorModel.tar")
+    print(pred.predict("C"))

@@ -2,8 +2,18 @@ import enum
 import os
 
 from databases import Database
-from sqlalchemy import (ARRAY, JSON, Column, Enum, ForeignKey, Integer,
-                        MetaData, String, Table, create_engine)
+from sqlalchemy import (
+    ARRAY,
+    JSON,
+    Column,
+    Enum,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    create_engine,
+)
 
 
 class JobStatus(enum.Enum):
@@ -19,33 +29,38 @@ engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 movies = Table(
-    'movies',
+    "movies",
     metadata,
-    Column('id', Integer, primary_key=True),
-    Column('name', String(50)),
-    Column('plot', String(250)),
-    Column('genres', ARRAY(String)),
-    Column('casts', ARRAY(String))
+    Column("id", Integer, primary_key=True),
+    Column("name", String(50)),
+    Column("plot", String(250)),
+    Column("genres", ARRAY(String)),
+    Column("casts", ARRAY(String)),
 )
 
 users = Table(
-    'users',
+    "users",
     metadata,
-    Column('id', Integer, primary_key=True),
-    Column('name', String(50), nullable=False),
-    Column('email', String(50), nullable=False),
-    Column('password', String(100), nullable=False)
+    Column("id", Integer, primary_key=True),
+    Column("name", String(50), nullable=False),
+    Column("email", String(50), nullable=False),
+    Column("password", String(100), nullable=False),
 )
 
 train_jobs = Table(
-    'train_jobs',
+    "train_jobs",
     metadata,
-    Column('id', Integer, primary_key=True),
-    Column('pdb_path', String(500), nullable=False),
-    Column('gpf_path', String(500), nullable=False),
-    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False,),
-    Column('params', JSON, nullable=False),
-    Column('status', Enum(JobStatus), nullable=False),
+    Column("id", Integer, primary_key=True),
+    Column("pdb_path", String(500), nullable=False),
+    Column("gpf_path", String(500), nullable=False),
+    Column(
+        "user_id",
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("params", JSON, nullable=False),
+    Column("status", Enum(JobStatus), nullable=False),
 )
 
 database = Database(DATABASE_URL)

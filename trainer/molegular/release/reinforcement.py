@@ -48,8 +48,17 @@ class Reinforcement(object):
         self.predictor = predictor
         self.get_reward = get_reward
 
-    def policy_gradient(self, data, reward_func, OVERALL_INDEX=0, n_batch=10, gamma=0.97,
-                        std_smiles=False, grad_clipping=None, **kwargs):
+    def policy_gradient(
+        self,
+        data,
+        reward_func,
+        OVERALL_INDEX=0,
+        n_batch=10,
+        gamma=0.97,
+        std_smiles=False,
+        grad_clipping=None,
+        **kwargs
+    ):
         """
         Implementation of the policy gradient algorithm.
 
@@ -97,27 +106,27 @@ class Reinforcement(object):
         self.get_reward = reward_func
         self.generator.optimizer.zero_grad()
         total_reward = 0
-        
+
         for _ in range(n_batch):
 
             # Sampling new trajectory
             reward = 0
-            trajectory = '<>'
+            trajectory = "<>"
             while reward == 0:
                 trajectory = self.generator.evaluate(data)
                 if std_smiles:
                     try:
                         mol = Chem.MolFromSmiles(trajectory[1:-1])
-                        trajectory = '<' + Chem.MolToSmiles(mol) + '>'
-                        reward = self.get_reward(trajectory[1:-1], 
-                                                 self.predictor,
-                                                 -5.0, OVERALL_INDEX)
+                        trajectory = "<" + Chem.MolToSmiles(mol) + ">"
+                        reward = self.get_reward(
+                            trajectory[1:-1], self.predictor, -5.0, OVERALL_INDEX
+                        )
                     except:
                         reward = 0
                 else:
-                    reward = self.get_reward(trajectory[1:-1],
-                                             self.predictor, 
-                                             -5.0, OVERALL_INDEX)
+                    reward = self.get_reward(
+                        trajectory[1:-1], self.predictor, -5.0, OVERALL_INDEX
+                    )
 
             # Converting string of characters into tensor
             trajectory_input = data.char_tensor(trajectory)
@@ -135,13 +144,13 @@ class Reinforcement(object):
                 stack = None
 
             # "Following" the trajectory and accumulating the loss
-            for p in range(len(trajectory)-1):
-                output, hidden, stack = self.generator(trajectory_input[p], 
-                                                       hidden, 
-                                                       stack)
+            for p in range(len(trajectory) - 1):
+                output, hidden, stack = self.generator(
+                    trajectory_input[p], hidden, stack
+                )
                 log_probs = F.log_softmax(output, dim=1)
-                top_i = trajectory_input[p+1]
-                rl_loss -= (log_probs[0, top_i]*discounted_reward)
+                top_i = trajectory_input[p + 1]
+                rl_loss -= log_probs[0, top_i] * discounted_reward
                 discounted_reward = discounted_reward * gamma
 
         # Doing backward pass and parameters update
@@ -149,9 +158,8 @@ class Reinforcement(object):
         total_reward = total_reward / n_batch
         rl_loss.backward()
         if grad_clipping is not None:
-            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), 
-                                           grad_clipping)
+            torch.nn.utils.clip_grad_norm_(self.generator.parameters(), grad_clipping)
 
         self.generator.optimizer.step()
-        
+
         return total_reward, rl_loss.item()

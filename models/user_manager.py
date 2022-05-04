@@ -15,18 +15,22 @@ SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+
 def verify_password(plain_passwd, hashed_passwd):
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.verify(plain_passwd, hashed_passwd)
+
 
 def get_password_hash(password):
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.hash(password)
 
+
 async def get_user(email: str) -> UserInDB:
     query = users.select(users.c.email == email)
     user = await database.fetch_one(query=query)
     return user
+
 
 async def authenticate_user(email: str, password: str) -> Union[bool, UserInDB]:
     query = users.select(users.c.email == email)
@@ -35,22 +39,26 @@ async def authenticate_user(email: str, password: str) -> Union[bool, UserInDB]:
 
     if not user:
         return False
-    
+
     if not verify_password(password, user.password):
         return False
-    
+
     return user
 
-async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+
+async def create_access_token(
+    data: dict, expires_delta: Optional[timedelta] = None
+) -> str:
     to_encode: dict = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({'exp': expire})
+
+    to_encode.update({"exp": expire})
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
     credentials_exception: Exception = HTTPException(
@@ -59,10 +67,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload: dict = jwt.decode(
-            token, SECRET_KEY, 
-            algorithms=[ALGORITHM]
-        )
+        payload: dict = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
@@ -74,16 +79,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInDB:
         raise credentials_exception
     return user
 
+
 async def user_signup(payload: SignUpFormData) -> int:
     user_exists: Optional[UserInDB] = await get_user(payload.email)
 
     if user_exists:
-        raise HTTPException(status_code=400, detail="User with this email already exists")
-    
+        raise HTTPException(
+            status_code=400, detail="User with this email already exists"
+        )
+
     payload.password = get_password_hash(payload.password)
 
     query = users.insert().values(**payload.dict())
     return await database.execute(query=query)
+
 
 async def get_all_user_jobs(user_id: int):
     query = train_jobs.select().where(train_jobs.c.user_id == user_id)

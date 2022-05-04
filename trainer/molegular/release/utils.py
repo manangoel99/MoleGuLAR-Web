@@ -108,13 +108,15 @@ def sanitize_smiles(smiles, canonical=True, throw_warning=False):
     for sm in smiles:
         try:
             if canonical:
-                new_smiles.append(Chem.MolToSmiles(Chem.MolFromSmiles(sm, sanitize=True)))
+                new_smiles.append(
+                    Chem.MolToSmiles(Chem.MolFromSmiles(sm, sanitize=True))
+                )
             else:
                 new_smiles.append(sm)
         except:
             if throw_warning:
-                warnings.warn('Unsanitized SMILES string: ' + sm, UserWarning)
-            new_smiles.append('')
+                warnings.warn("Unsanitized SMILES string: " + sm, UserWarning)
+            new_smiles.append("")
     return new_smiles
 
 
@@ -152,9 +154,10 @@ def canonical_smiles(smiles, sanitize=True, throw_warning=False):
             new_smiles.append(Chem.MolToSmiles(mol))
         except:
             if throw_warning:
-                warnings.warn(sm + ' can not be canonized: invalid '
-                                   'SMILES string!', UserWarning)
-            new_smiles.append('')
+                warnings.warn(
+                    sm + " can not be canonized: invalid " "SMILES string!", UserWarning
+                )
+            new_smiles.append("")
     return new_smiles
 
 
@@ -169,14 +172,14 @@ def save_smi_to_file(filename, smiles, unique=True):
 
         Output:
             success (bool): defines whether operation was successfully completed or not.
-       """
+    """
     if unique:
         smiles = list(set(smiles))
     else:
         smiles = list(smiles)
-    f = open(filename, 'w')
+    f = open(filename, "w")
     for mol in smiles:
-        f.writelines([mol, '\n'])
+        f.writelines([mol, "\n"])
     f.close()
     return f.closed
 
@@ -196,11 +199,11 @@ def read_smi_file(filename, unique=True, add_start_end_tokens=False):
 
     If 'unique=True' this list contains only unique copies.
     """
-    f = open(filename, 'r')
+    f = open(filename, "r")
     molecules = []
     for line in f:
         if add_start_end_tokens:
-            molecules.append('<' + line[:-1] + '>')
+            molecules.append("<" + line[:-1] + ">")
         else:
             molecules.append(line[:-1])
     if unique:
@@ -236,9 +239,9 @@ def tokenize(smiles, tokens=None):
             number of unique tokens.
     """
     if tokens is None:
-        tokens = list(set(''.join(smiles)))
+        tokens = list(set("".join(smiles)))
         tokens = list(np.sort(tokens))
-        tokens = ''.join(tokens)
+        tokens = "".join(tokens)
     token2idx = dict((token, i) for i, token in enumerate(tokens))
     num_tokens = len(tokens)
     return tokens, token2idx, num_tokens
@@ -248,26 +251,29 @@ def time_since(since):
     s = time.time() - since
     m = math.floor(s / 60)
     s -= m * 60
-    return '%dm %ds' % (m, s)
+    return "%dm %ds" % (m, s)
 
 
-def cross_validation_split(x, y, n_folds=5, split='random', folds=None):
-    assert(len(x) == len(y))
+def cross_validation_split(x, y, n_folds=5, split="random", folds=None):
+    assert len(x) == len(y)
     x = np.array(x)
     y = np.array(y)
-    if split not in ['random', 'stratified', 'fixed']:
-        raise ValueError('Invalid value for argument \'split\': '
-                         'must be either \'random\', \'stratified\' '
-                         'or \'fixed\'')
-    if split == 'random':
+    if split not in ["random", "stratified", "fixed"]:
+        raise ValueError(
+            "Invalid value for argument 'split': "
+            "must be either 'random', 'stratified' "
+            "or 'fixed'"
+        )
+    if split == "random":
         cv_split = KFold(n_splits=n_folds, shuffle=True)
         folds = list(cv_split.split(x, y))
-    elif split == 'stratified':
+    elif split == "stratified":
         cv_split = StratifiedKFold(n_splits=n_folds, shuffle=True)
         folds = list(cv_split.split(x, y))
-    elif split == 'fixed' and folds is None:
+    elif split == "fixed" and folds is None:
         raise TypeError(
-            'Invalid type for argument \'folds\': found None, but must be list')
+            "Invalid type for argument 'folds': found None, but must be list"
+        )
     cross_val_data = []
     cross_val_labels = []
     if len(folds) == n_folds:
@@ -278,15 +284,16 @@ def cross_validation_split(x, y, n_folds=5, split='random', folds=None):
         for f in range(n_folds):
             left = np.where(folds == f)[0].min()
             right = np.where(folds == f)[0].max()
-            cross_val_data.append(x[left:right + 1])
-            cross_val_labels.append(y[left:right + 1])
+            cross_val_data.append(x[left : right + 1])
+            cross_val_labels.append(y[left : right + 1])
 
     return cross_val_data, cross_val_labels
 
 
-def read_object_property_file(path, delimiter=',', cols_to_read=[0, 1],
-                              keep_header=False):
-    f = open(path, 'r')
+def read_object_property_file(
+    path, delimiter=",", cols_to_read=[0, 1], keep_header=False
+):
+    f = open(path, "r")
     reader = csv.reader(f, delimiter=delimiter)
     data_full = np.array(list(reader))
     if keep_header:

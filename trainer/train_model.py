@@ -20,7 +20,8 @@ from trainer.molegular.release.reinforcement import Reinforcement
 from trainer.molegular.release.stackRNN import StackAugmentedRNN
 from trainer.molegular.release.utils import canonical_smiles
 
-RDLogger.DisableLog('rdApp.info')
+RDLogger.DisableLog("rdApp.info")
+
 
 @ray.remote(num_gpus=1)
 class TrainModel(object):
@@ -46,13 +47,10 @@ class TrainModel(object):
         self.switch_frequency = train_job["params"]["switch_frequency"]
         self.OVERALL_INDEX = 0
 
-        self.thresholds = {
-            'LogP': self.logP_threshold,
-            'QED': self.QED_threshold
-        }
+        self.thresholds = {"LogP": self.logP_threshold, "QED": self.QED_threshold}
 
         self.use_docking = True
-        self.reward_function = 'exponential'
+        self.reward_function = "exponential"
 
         self.get_reward = rwds.MultiReward(
             rwds.exponential,
@@ -61,23 +59,74 @@ class TrainModel(object):
             use_qed=self.QED,
             use_tpsa=False,
             use_solvation=False,
-            **self.thresholds
+            **self.thresholds,
         )
 
-        self.job_dir = Path(os.path.join(
-            os.getenv("ROOT_DIR"),
-            str(self.user_id),
-            str(self.job_id),
-        ))
+        self.job_dir = Path(
+            os.path.join(
+                os.getenv("ROOT_DIR"),
+                str(self.user_id),
+                str(self.job_id),
+            )
+        )
 
         gen_data_path = os.path.join(os.getcwd(), "trainer", "random.smi")
-        tokens = ['<', '>', '#', '%', ')', '(', '+', '-', '/', '.', '1', '0', '3', '2', '5', '4', '7',
-          '6', '9', '8', '=', 'A', '@', 'C', 'B', 'F', 'I', 'H', 'O', 'N', 'P', 'S', '[', ']',
-          '\\', 'c', 'e', 'i', 'l', 'o', 'n', 'p', 's', 'r', '\n']
+        tokens = [
+            "<",
+            ">",
+            "#",
+            "%",
+            ")",
+            "(",
+            "+",
+            "-",
+            "/",
+            ".",
+            "1",
+            "0",
+            "3",
+            "2",
+            "5",
+            "4",
+            "7",
+            "6",
+            "9",
+            "8",
+            "=",
+            "A",
+            "@",
+            "C",
+            "B",
+            "F",
+            "I",
+            "H",
+            "O",
+            "N",
+            "P",
+            "S",
+            "[",
+            "]",
+            "\\",
+            "c",
+            "e",
+            "i",
+            "l",
+            "o",
+            "n",
+            "p",
+            "s",
+            "r",
+            "\n",
+        ]
 
-        self.gen_data = GeneratorData(training_data_path=gen_data_path, delimiter='\t',
-                         cols_to_read=[0], keep_header=True, tokens=tokens)
-        
+        self.gen_data = GeneratorData(
+            training_data_path=gen_data_path,
+            delimiter="\t",
+            cols_to_read=[0],
+            keep_header=True,
+            tokens=tokens,
+        )
+
         self.create_dirs(eval=eval)
 
         self.LOGS_DIR = self.logs_dir_path
@@ -88,29 +137,48 @@ class TrainModel(object):
         if self._predictor != "dock":
             if self._predictor != "gin":
                 raise ValueError("Only gin predictor is supported for now")
-            model_path = os.path.join(os.getenv("ROOT"), "trainer", "molegular", "Predictors", "GINPredictor.tar")
+            model_path = os.path.join(
+                os.getenv("ROOT"),
+                "trainer",
+                "molegular",
+                "Predictors",
+                "GINPredictor.tar",
+            )
             self.predictor = GINPredictor(model_path)
-        
+
         hidden_size = 1500
         stack_width = 1500
         stack_depth = 200
-        layer_type = 'GRU'
+        layer_type = "GRU"
         lr = 0.001
         optimizer_instance = torch.optim.Adadelta
         self.n_to_generate = 100
         self.n_policy_replay = 10
         self.n_policy = train_job["params"]["n_policy"]
 
-        self.generator = StackAugmentedRNN(input_size=self.gen_data.n_characters,
-                                     hidden_size=hidden_size,
-                                     output_size=self.gen_data.n_characters,
-                                     layer_type=layer_type,
-                                     n_layers=1, is_bidirectional=False, has_stack=True,
-                                     stack_width=stack_width, stack_depth=stack_depth,
-                                     use_cuda=True,
-                                     optimizer_instance=optimizer_instance, lr=lr)
-        
-        checkpoint_path = os.path.join(os.getenv("ROOT"), "trainer", "molegular", "checkpoints", "generator", "checkpoint_biggest_rnn")
+        self.generator = StackAugmentedRNN(
+            input_size=self.gen_data.n_characters,
+            hidden_size=hidden_size,
+            output_size=self.gen_data.n_characters,
+            layer_type=layer_type,
+            n_layers=1,
+            is_bidirectional=False,
+            has_stack=True,
+            stack_width=stack_width,
+            stack_depth=stack_depth,
+            use_cuda=True,
+            optimizer_instance=optimizer_instance,
+            lr=lr,
+        )
+
+        checkpoint_path = os.path.join(
+            os.getenv("ROOT"),
+            "trainer",
+            "molegular",
+            "checkpoints",
+            "generator",
+            "checkpoint_biggest_rnn",
+        )
         self.generator.load_model(checkpoint_path)
 
         self.RL = Reinforcement(self.generator, self.predictor, self.get_reward)
@@ -119,11 +187,7 @@ class TrainModel(object):
         self.preds = []
         self.logp_iter = []
         self.qed_iter = []
-        self.metrics_df = {
-            "BA": [], 
-            "LogP": [], 
-            "QED": []
-        }
+        self.metrics_df = {"BA": [], "LogP": [], "QED": []}
 
     def create_dir(self, type, eval=False):
         root_dir = os.getenv("ROOT_DIR")
@@ -145,28 +209,43 @@ class TrainModel(object):
             shutil.rmtree(path)
             path.mkdir(exist_ok=True, parents=True)
         return path
-    
+
     def load_generator(self, path):
         self.generator.load_model(path)
- 
+
     def create_dirs(self, eval=False):
         self.logs_dir_path = self.create_dir(f"logs_{self.reward_function}", eval=eval)
-        self.molecules_dir_path = self.create_dir(f"molecules_{self.reward_function}", eval=eval)
+        self.molecules_dir_path = self.create_dir(
+            f"molecules_{self.reward_function}", eval=eval
+        )
         self.trajectories_path = self.create_dir("trajectories", eval=eval)
         self.rewards_path = self.create_dir("rewards", eval=eval)
         self.losses_path = self.create_dir("losses", eval=eval)
         self.models_path = self.create_dir("models", eval=eval)
         self.predictions_path = self.create_dir("predictions", eval=eval)
 
-        self.MODEL_NAME = os.path.join(self.models_path, f"model_{self.reward_function}.pt")
+        self.MODEL_NAME = os.path.join(
+            self.models_path, f"model_{self.reward_function}.pt"
+        )
         self.LOGS_DIR = self.logs_dir_path
         self.MOL_DIR = self.molecules_dir_path
 
-        self.TRAJ_FILE = open(os.path.join(self.trajectories_path, f"trajectories_{self.reward_function}.txt"), "w")
-        self.LOSS_FILE = os.path.join(self.losses_path, f"losses_{self.reward_function}.txt")
-        self.REWARD_FILE = os.path.join(self.rewards_path, f"rewards_{self.reward_function}.txt")
-        self.DF_FILE = os.path.join(self.predictions_path, f"predictions_{self.reward_function}.txt")
-    
+        self.TRAJ_FILE = open(
+            os.path.join(
+                self.trajectories_path, f"trajectories_{self.reward_function}.txt"
+            ),
+            "w",
+        )
+        self.LOSS_FILE = os.path.join(
+            self.losses_path, f"losses_{self.reward_function}.txt"
+        )
+        self.REWARD_FILE = os.path.join(
+            self.rewards_path, f"rewards_{self.reward_function}.txt"
+        )
+        self.DF_FILE = os.path.join(
+            self.predictions_path, f"predictions_{self.reward_function}.txt"
+        )
+
     def dock_and_get_score(self, smile, test=False):
         mol_dir = self.MOL_DIR
         log_dir = self.LOGS_DIR
@@ -178,32 +257,32 @@ class TrainModel(object):
             AllChem.EmbedMolecule(mol)
 
             if test == True:
-                self.MOL_DIR = Path(
-                    os.path.join(
-                        self.MOL_DIR,
-                        "validation"
-                    )
-                )
-                self.LOGS_DIR = Path(
-                    os.path.join(
-                        self.LOGS_DIR,
-                        "validation"
-                    )
-                )
+                self.MOL_DIR = Path(os.path.join(self.MOL_DIR, "validation"))
+                self.LOGS_DIR = Path(os.path.join(self.LOGS_DIR, "validation"))
                 if os.path.exists(self.MOL_DIR):
                     shutil.rmtree(self.MOL_DIR)
                 self.MOL_DIR.mkdir(exist_ok=True, parents=True)
                 if os.path.exists(self.LOGS_DIR):
                     shutil.rmtree(self.LOGS_DIR)
                 self.LOGS_DIR.mkdir(exist_ok=True, parents=True)
-            
+
             os.chdir(self.MOL_DIR)
-            rdmolfiles.MolToPDBFile(mol, os.path.join(self.MOL_DIR, f"{self.OVERALL_INDEX}.pdb"))
-            os.system(f"{path}/prepare_ligand4.py -l {self.OVERALL_INDEX}.pdb -o {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt") # > /dev/null 2>&1")
-            os.system(f"{path}/prepare_receptor4.py -r {self.receptor} -o ./protein.pdbqt") # > /dev/null 2>&1")
-            os.system(f"{path}/prepare_gpf4.py -i {self.gpf} -l {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -r {self.MOL_DIR}/protein.pdbqt -o {self.MOL_DIR}/grid_params.gpf")# > /dev/null 2>&1")
+            rdmolfiles.MolToPDBFile(
+                mol, os.path.join(self.MOL_DIR, f"{self.OVERALL_INDEX}.pdb")
+            )
+            os.system(
+                f"{path}/prepare_ligand4.py -l {self.OVERALL_INDEX}.pdb -o {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt"
+            )  # > /dev/null 2>&1")
+            os.system(
+                f"{path}/prepare_receptor4.py -r {self.receptor} -o ./protein.pdbqt"
+            )  # > /dev/null 2>&1")
+            os.system(
+                f"{path}/prepare_gpf4.py -i {self.gpf} -l {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -r {self.MOL_DIR}/protein.pdbqt -o {self.MOL_DIR}/grid_params.gpf"
+            )  # > /dev/null 2>&1")
             os.system(f"autogrid4 -p {self.MOL_DIR}/grid_params.gpf > /dev/null 2>&1")
-            os.system(f"/app/AutoDock-GPU/bin/autodock_gpu_64wi -ffile protein.maps.fld -lfile {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -resnam {self.LOGS_DIR}/{str(self.OVERALL_INDEX)} -nrun 10 -devnum {self.devnum} > /dev/null 2>&1")
+            os.system(
+                f"/app/AutoDock-GPU/bin/autodock_gpu_64wi -ffile protein.maps.fld -lfile {self.MOL_DIR}/{str(self.OVERALL_INDEX)}.pdbqt -resnam {self.LOGS_DIR}/{str(self.OVERALL_INDEX)} -nrun 10 -devnum {self.devnum} > /dev/null 2>&1"
+            )
 
             cmd = f"cat {self.LOGS_DIR}/{str(self.OVERALL_INDEX)}.dlg | grep -i ranking | tr -s '\t' ' ' | cut -d ' ' -f 5 | head -n1"
             stream = os.popen(cmd)
@@ -220,11 +299,11 @@ class TrainModel(object):
             os.chdir(curr_dir)
             self.OVERALL_INDEX += 1
             return 0
-    
+
     def estimate_and_update(self, generator=None, predictor=None, n_to_generate=10):
         if generator is None:
             generator = self.generator
-        
+
         if predictor is None:
             predictor = self.predictor
 
@@ -234,15 +313,19 @@ class TrainModel(object):
             pbar.set_description("Generating molecules...")
             generated.append(generator.evaluate(self.gen_data, predict_len=120)[1:-1])
 
-        sanitized = canonical_smiles(generated, sanitize=False, throw_warning=False)[:-1]
+        sanitized = canonical_smiles(generated, sanitize=False, throw_warning=False)[
+            :-1
+        ]
         unique_smiles = list(np.unique(sanitized))[1:]
-        smiles, prediction, nan_smiles = predictor.predict(unique_smiles, test=True, use_tqdm=True)
+        smiles, prediction, nan_smiles = predictor.predict(
+            unique_smiles, test=True, use_tqdm=True
+        )
 
         return smiles, prediction
 
     def simple_moving_average(self, previous_values, new_value, ma_window_size=10):
-        value_ma = np.sum(previous_values[-(ma_window_size-1):]) + new_value
-        value_ma = value_ma/(len(previous_values[-(ma_window_size-1):]) + 1)
+        value_ma = np.sum(previous_values[-(ma_window_size - 1) :]) + new_value
+        value_ma = value_ma / (len(previous_values[-(ma_window_size - 1) :]) + 1)
         return value_ma
 
     def train(self, go=True):
@@ -258,18 +341,40 @@ class TrainModel(object):
                     if i % self.switch_frequency == 0:
                         use_arr = np.roll(use_arr, 1)
                         use_docking, use_logP, use_qed = use_arr
-                    self.get_reward = rwds.MultiReward(rwds.exponential, use_docking, use_logP, use_qed, False, False, **self.thresholds)
+                    self.get_reward = rwds.MultiReward(
+                        rwds.exponential,
+                        use_docking,
+                        use_logP,
+                        use_qed,
+                        False,
+                        False,
+                        **self.thresholds,
+                    )
                 if self.logP == True and self.QED == False:
                     if i % self.switch_frequency == 0:
                         use_logP = not use_logP
                         use_docking = not use_docking
-                    self.get_reward = rwds.MultiReward(rwds.exponential, use_docking, use_logP, False, False, False, **self.thresholds)
-            
-            for j in range(self.n_policy):
-                cur_reward, cur_loss = self.RL.policy_gradient(self.gen_data, self.get_reward)
+                    self.get_reward = rwds.MultiReward(
+                        rwds.exponential,
+                        use_docking,
+                        use_logP,
+                        False,
+                        False,
+                        False,
+                        **self.thresholds,
+                    )
 
-                self.rewards.append(self.simple_moving_average(self.rewards, cur_reward))
-                self.rl_losses.append(self.simple_moving_average(self.rl_losses, cur_loss))
+            for j in range(self.n_policy):
+                cur_reward, cur_loss = self.RL.policy_gradient(
+                    self.gen_data, self.get_reward
+                )
+
+                self.rewards.append(
+                    self.simple_moving_average(self.rewards, cur_reward)
+                )
+                self.rl_losses.append(
+                    self.simple_moving_average(self.rl_losses, cur_loss)
+                )
 
             # smiles_cur, prediction_cur = self.estimate_and_update(self.RL.generator, self.predictor, self.n_to_generate)
             # logps = [MolLogP(Chem.MolFromSmiles(sm)) for sm in smiles_cur]
@@ -299,7 +404,7 @@ class TrainModel(object):
             self.RL.generator.save_model(self.MODEL_NAME)
             np.savetxt(self.LOSS_FILE, self.rl_losses)
             np.savetxt(self.REWARD_FILE, self.rewards)
-        
+
         self.TRAJ_FILE.close()
         return True
 
@@ -307,7 +412,7 @@ class TrainModel(object):
         def __init__(self, path, trainer):
             self.path = path
             self.trainer = trainer
-        
+
         def predict(self, smiles, test=False, use_tqdm=False):
             canonical_indices = []
             invalid_indices = []
@@ -331,18 +436,22 @@ class TrainModel(object):
             invalid_smiles = [smiles[i] for i in invalid_indices]
             if len(canonical_indices) == 0:
                 return canonical_smiles, [], invalid_smiles
-            prediction = [self.trainer.dock_and_get_score(smiles[index], test) for index in canonical_indices]
+            prediction = [
+                self.trainer.dock_and_get_score(smiles[index], test)
+                for index in canonical_indices
+            ]
             return canonical_smiles, prediction, invalid_smiles
+
 
 if __name__ == "__main__":
     path = os.getenv("ROOT_DIR")
 
     print(path)
     job = {
-        "pdb_path": f"{path}/1/4BTK.pdb", 
-        "gpf_path": f"{path}/1/4BTK.gpf", 
-        "user_id":1, 
-        "params":{
+        "pdb_path": f"{path}/1/4BTK.pdb",
+        "gpf_path": f"{path}/1/4BTK.gpf",
+        "user_id": 1,
+        "params": {
             "num_epochs": 1,
             "logP": True,
             "QED": True,
@@ -350,8 +459,8 @@ if __name__ == "__main__":
             "predictor": "dock",
             "logP_threshold": 2.5,
             "QED_threshold": 0.8,
-            "switch_frequency": 35
-        }
+            "switch_frequency": 35,
+        },
     }
     print(job)
     obj = TrainModel.remote(job, 1)

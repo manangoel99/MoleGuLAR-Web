@@ -19,10 +19,21 @@ from trainer.molegular.release.smiles_enumerator import SmilesEnumerator
 
 
 class StackAugmentedRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, layer_type='GRU',
-                 n_layers=1, is_bidirectional=False, has_stack=False,
-                 stack_width=None, stack_depth=None, use_cuda=None,
-                 optimizer_instance=torch.optim.Adadelta, lr=0.01):
+    def __init__(
+        self,
+        input_size,
+        hidden_size,
+        output_size,
+        layer_type="GRU",
+        n_layers=1,
+        is_bidirectional=False,
+        has_stack=False,
+        stack_width=None,
+        stack_depth=None,
+        use_cuda=None,
+        optimizer_instance=torch.optim.Adadelta,
+        lr=0.01,
+    ):
         """
         Constructor for the StackAugmentedRNN object.
 
@@ -70,16 +81,16 @@ class StackAugmentedRNN(nn.Module):
 
         """
         super(StackAugmentedRNN, self).__init__()
-        
-        if layer_type not in ['GRU', 'LSTM']:
-            raise InvalidArgumentError('Layer type must be GRU or LSTM')
+
+        if layer_type not in ["GRU", "LSTM"]:
+            raise InvalidArgumentError("Layer type must be GRU or LSTM")
         self.layer_type = layer_type
         self.is_bidirectional = is_bidirectional
         if self.is_bidirectional:
             self.num_dir = 2
         else:
             self.num_dir = 1
-        if layer_type == 'LSTM':
+        if layer_type == "LSTM":
             self.has_cell = True
         else:
             self.has_cell = False
@@ -96,39 +107,49 @@ class StackAugmentedRNN(nn.Module):
             self.use_cuda = torch.cuda.is_available()
 
         self.n_layers = n_layers
-        
-        if self.has_stack:
-            self.stack_controls_layer = nn.Linear(in_features=self.hidden_size *
-                                                              self.num_dir,
-                                                  out_features=3)
 
-            self.stack_input_layer = nn.Linear(in_features=self.hidden_size *
-                                                           self.num_dir,
-                                               out_features=self.stack_width)
+        if self.has_stack:
+            self.stack_controls_layer = nn.Linear(
+                in_features=self.hidden_size * self.num_dir, out_features=3
+            )
+
+            self.stack_input_layer = nn.Linear(
+                in_features=self.hidden_size * self.num_dir,
+                out_features=self.stack_width,
+            )
 
         self.encoder = nn.Embedding(input_size, hidden_size)
         if self.has_stack:
             rnn_input_size = hidden_size + stack_width
         else:
             rnn_input_size = hidden_size
-        if self.layer_type == 'LSTM':
-            self.rnn = nn.LSTM(rnn_input_size, hidden_size, n_layers,
-                               bidirectional=self.is_bidirectional)
+        if self.layer_type == "LSTM":
+            self.rnn = nn.LSTM(
+                rnn_input_size,
+                hidden_size,
+                n_layers,
+                bidirectional=self.is_bidirectional,
+            )
             self.decoder = nn.Linear(hidden_size * self.num_dir, output_size)
-        elif self.layer_type == 'GRU':
-            self.rnn = nn.GRU(rnn_input_size, hidden_size, n_layers,
-                             bidirectional=self.is_bidirectional)
+        elif self.layer_type == "GRU":
+            self.rnn = nn.GRU(
+                rnn_input_size,
+                hidden_size,
+                n_layers,
+                bidirectional=self.is_bidirectional,
+            )
             self.decoder = nn.Linear(hidden_size * self.num_dir, output_size)
         self.log_softmax = torch.nn.LogSoftmax(dim=1)
-        
+
         if self.use_cuda:
             self = self.cuda()
         self.criterion = nn.CrossEntropyLoss()
         self.lr = lr
         self.optimizer_instance = optimizer_instance
-        self.optimizer = self.optimizer_instance(self.parameters(), lr=lr,
-                                                 weight_decay=0.00001)
-  
+        self.optimizer = self.optimizer_instance(
+            self.parameters(), lr=lr, weight_decay=0.00001
+        )
+
     def load_model(self, path):
         """
         Loads pretrained parameters from the checkpoint into the model.
@@ -209,8 +230,9 @@ class StackAugmentedRNN(nn.Module):
             stack_controls = F.softmax(stack_controls, dim=1)
             stack_input = self.stack_input_layer(hidden_2_stack.unsqueeze(0))
             stack_input = torch.tanh(stack_input)
-            stack = self.stack_augmentation(stack_input.permute(1, 0, 2),
-                                            stack, stack_controls)
+            stack = self.stack_augmentation(
+                stack_input.permute(1, 0, 2), stack, stack_controls
+            )
             stack_top = stack[:, 0, :].unsqueeze(0)
             inp = torch.cat((inp, stack_top), dim=2)
         output, next_hidden = self.rnn(inp.view(1, 1, -1), hidden)
@@ -265,11 +287,13 @@ class StackAugmentedRNN(nn.Module):
             account number of RNN layers and directions)
         """
         if self.use_cuda:
-            return Variable(torch.zeros(self.n_layers * self.num_dir, 1,
-                                        self.hidden_size).cuda())
+            return Variable(
+                torch.zeros(self.n_layers * self.num_dir, 1, self.hidden_size).cuda()
+            )
         else:
-            return Variable(torch.zeros(self.n_layers * self.num_dir, 1,
-                                        self.hidden_size))
+            return Variable(
+                torch.zeros(self.n_layers * self.num_dir, 1, self.hidden_size)
+            )
 
     def init_cell(self):
         """
@@ -283,11 +307,13 @@ class StackAugmentedRNN(nn.Module):
             account number of RNN layers and directions)
         """
         if self.use_cuda:
-            return Variable(torch.zeros(self.n_layers * self.num_dir, 1,
-                                        self.hidden_size).cuda())
+            return Variable(
+                torch.zeros(self.n_layers * self.num_dir, 1, self.hidden_size).cuda()
+            )
         else:
-            return Variable(torch.zeros(self.n_layers * self.num_dir, 1,
-                                        self.hidden_size))
+            return Variable(
+                torch.zeros(self.n_layers * self.num_dir, 1, self.hidden_size)
+            )
 
     def init_stack(self):
         """
@@ -342,8 +368,8 @@ class StackAugmentedRNN(nn.Module):
         self.optimizer.step()
 
         return loss.item() / len(inp)
-    
-    def evaluate(self, data, prime_str='<', end_token='>', predict_len=100):
+
+    def evaluate(self, data, prime_str="<", end_token=">", predict_len=100):
         """
         Generates new string from the model distribution.
 
@@ -383,7 +409,7 @@ class StackAugmentedRNN(nn.Module):
         new_sample = prime_str
 
         # Use priming string to "build up" hidden state
-        for p in range(len(prime_str)-1):
+        for p in range(len(prime_str) - 1):
             _, hidden, stack = self.forward(prime_input[p], hidden, stack)
         inp = prime_input[-1]
 
@@ -410,8 +436,15 @@ class StackAugmentedRNN(nn.Module):
 
         return new_sample
 
-    def fit(self, data, n_iterations, all_losses=[], print_every=100,
-            plot_every=10, augment=False):
+    def fit(
+        self,
+        data,
+        n_iterations,
+        all_losses=[],
+        print_every=100,
+        plot_every=10,
+        augment=False,
+    ):
         """
         This methods fits the parameters of the model. Training is performed to
         minimize the cross-entropy loss when predicting the next character
@@ -453,17 +486,17 @@ class StackAugmentedRNN(nn.Module):
         else:
             smiles_augmentation = None
 
-        for epoch in trange(1, n_iterations + 1, desc='Training in progress...'):
+        for epoch in trange(1, n_iterations + 1, desc="Training in progress..."):
             inp, target = data.random_training_set(smiles_augmentation)
             loss = self.train_step(inp, target)
             loss_avg += loss
 
             if epoch % print_every == 0:
-                print('[%s (%d %d%%) %.4f]' % (time_since(start), epoch,
-                                               epoch / n_iterations * 100, loss)
-                      )
-                print(self.evaluate(data=data, prime_str = '<',
-                                    predict_len=100), '\n')
+                print(
+                    "[%s (%d %d%%) %.4f]"
+                    % (time_since(start), epoch, epoch / n_iterations * 100, loss)
+                )
+                print(self.evaluate(data=data, prime_str="<", predict_len=100), "\n")
 
             if epoch % plot_every == 0:
                 all_losses.append(loss_avg / plot_every)

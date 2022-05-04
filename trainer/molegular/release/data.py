@@ -3,15 +3,28 @@ import torch
 import random
 import numpy as np
 
-from trainer.molegular.release.utils import read_smi_file, tokenize, read_object_property_file
+from trainer.molegular.release.utils import (
+    read_smi_file,
+    tokenize,
+    read_object_property_file,
+)
 
 
 class GeneratorData(object):
     """
     Docstring coming soon...
     """
-    def __init__(self, training_data_path, tokens=None, start_token='<', 
-                 end_token='>', max_len=120, use_cuda=None, **kwargs):
+
+    def __init__(
+        self,
+        training_data_path,
+        tokens=None,
+        start_token="<",
+        end_token=">",
+        max_len=120,
+        use_cuda=None,
+        **kwargs
+    ):
         """
         Constructor for the GeneratorData object.
 
@@ -51,20 +64,20 @@ class GeneratorData(object):
         """
         super(GeneratorData, self).__init__()
 
-        if 'cols_to_read' not in kwargs:
-            kwargs['cols_to_read'] = []
+        if "cols_to_read" not in kwargs:
+            kwargs["cols_to_read"] = []
 
-        data = read_object_property_file(training_data_path,
-                                                       **kwargs)
+        data = read_object_property_file(training_data_path, **kwargs)
         self.start_token = start_token
         self.end_token = end_token
         self.file = []
         for i in range(len(data)):
             if len(data[i]) <= max_len:
-                self.file.append(self.start_token + data[i] + self.end_token) 
+                self.file.append(self.start_token + data[i] + self.end_token)
         self.file_len = len(self.file)
-        self.all_characters, self.char2idx, \
-        self.n_characters = tokenize(self.file, tokens)
+        self.all_characters, self.char2idx, self.n_characters = tokenize(
+            self.file, tokens
+        )
         self.use_cuda = use_cuda
         if self.use_cuda is None:
             self.use_cuda = torch.cuda.is_available()
@@ -80,7 +93,7 @@ class GeneratorData(object):
         Returns:
             random_smiles (str).
         """
-        index = random.randint(0, self.file_len-1)
+        index = random.randint(0, self.file_len - 1)
         return self.file[index]
 
     def char_tensor(self, string):
@@ -102,14 +115,14 @@ class GeneratorData(object):
     def random_training_set(self, smiles_augmentation):
         chunk = self.random_chunk()
         if smiles_augmentation is not None:
-            chunk = '<' + smiles_augmentation.randomize_smiles(chunk[1:-1]) + '>'
+            chunk = "<" + smiles_augmentation.randomize_smiles(chunk[1:-1]) + ">"
         inp = self.char_tensor(chunk[:-1])
         target = self.char_tensor(chunk[1:])
         return inp, target
 
     def read_sdf_file(self, path, fields_to_read):
         raise NotImplementedError
-        
+
     def update_data(self, path):
         self.file, success = read_smi_file(path, unique=True)
         self.file_len = len(self.file)
@@ -117,23 +130,32 @@ class GeneratorData(object):
 
 
 class PredictorData(object):
-    def __init__(self, path, delimiter=',', cols=[0, 1], get_features=None,
-                 has_label=True, labels_start=1, **kwargs):
+    def __init__(
+        self,
+        path,
+        delimiter=",",
+        cols=[0, 1],
+        get_features=None,
+        has_label=True,
+        labels_start=1,
+        **kwargs
+    ):
         super(PredictorData, self).__init__()
         data = read_object_property_file(path, delimiter, cols_to_read=cols)
         if has_label:
             self.objects = np.array(data[:labels_start]).reshape(-1)
-            self.y = np.array(data[labels_start:], dtype='float32')
+            self.y = np.array(data[labels_start:], dtype="float32")
             self.y = self.y.reshape(-1, len(cols) - labels_start)
             if self.y.shape[1] == 1:
                 self.y = self.y.reshape(-1)
         else:
             self.objects = np.array(data[:labels_start]).reshape(-1)
-            self.y = [None]*len(self.object)
+            self.y = [None] * len(self.object)
         assert len(self.objects) == len(self.y)
         if get_features is not None:
-            self.x, processed_indices, invalid_indices = \
-                get_features(self.objects, **kwargs)
+            self.x, processed_indices, invalid_indices = get_features(
+                self.objects, **kwargs
+            )
             self.invalid_objects = self.objects[invalid_indices]
             self.objects = self.objects[processed_indices]
             self.invalid_y = self.y[invalid_indices]
@@ -145,4 +167,4 @@ class PredictorData(object):
         self.binary_y = None
 
     def binarize(self, threshold):
-        self.binary_y = np.array(self.y >= threshold, dtype='int32')
+        self.binary_y = np.array(self.y >= threshold, dtype="int32")

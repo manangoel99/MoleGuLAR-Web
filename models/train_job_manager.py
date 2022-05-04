@@ -15,7 +15,7 @@ from models.train_job import *
 
 async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
     job = TrainJob(pdb_path=pdb_path, gpf_path=gpf_path, params=params, user_id=user_id)
-    
+
     query = train_jobs.insert().values(**job.dict())
     job_id = await database.execute(query)
 
@@ -25,23 +25,39 @@ async def create_job(pdb_path: str, gpf_path: str, params: dict, user_id: int):
 
     return job_id
 
-async def run_job(job_id: int, user_id: int, pdb_path: str, gpf_path: str, params: dict):
-    model = TrainModel.remote({
-        "pdb_path": pdb_path,
-        "gpf_path": gpf_path,
-        "user_id": user_id,
-        "params": params
-    }, job_id)
+
+async def run_job(
+    job_id: int, user_id: int, pdb_path: str, gpf_path: str, params: dict
+):
+    model = TrainModel.remote(
+        {
+            "pdb_path": pdb_path,
+            "gpf_path": gpf_path,
+            "user_id": user_id,
+            "params": params,
+        },
+        job_id,
+    )
 
     model_train_id = model.train.remote()
     try:
         ray.get(model_train_id)
     except:
-        query = train_jobs.update().where(train_jobs.c.id == job_id).values(status=JobStatus.failed)
+        query = (
+            train_jobs.update()
+            .where(train_jobs.c.id == job_id)
+            .values(status=JobStatus.failed)
+        )
         await database.execute(query)
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in training job")
-    
-    query = train_jobs.update().where(train_jobs.c.id == job_id).values(status=JobStatus.finished)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in training job"
+        )
+
+    query = (
+        train_jobs.update()
+        .where(train_jobs.c.id == job_id)
+        .values(status=JobStatus.finished)
+    )
     return await database.execute(query)
 
 
